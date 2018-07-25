@@ -3,8 +3,10 @@ package main
 import (
 	"log"
 
-	"github.com/jinzhu/gorm"
 	"github.com/kitchen-delivery/config"
+
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
 )
 
 func main() {

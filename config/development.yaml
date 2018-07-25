@@ -1,6 +1,5 @@
 service_name: kitchen-delivery
 databases:
   mysql:
-    username: kitchen
-    password:
+    username: root
     database: kitchen
