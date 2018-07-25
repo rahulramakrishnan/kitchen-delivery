@@ -38,8 +38,15 @@ func main() {
 		log.Fatalf("Failed to initialize handlers - err: %+v", err)
 	}
 
-	// Register service health handler.
+	////////////////////////////////////////
+	// HTTP Route Initialization
+	////////////////////////////////////////
+
+	// Register service health routes.
 	http.HandleFunc("/health", handlers.Health.CheckHealth)
+
+	// Register order routes.
+	http.HandleFunc("/order", handlers.Order.HandleOrder)
 
 	log.Print("Kitchen Delivery online ....")
 
