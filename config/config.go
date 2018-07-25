@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -43,14 +42,12 @@ type Databases struct {
 // MySQL holds master and slave SQL connection urls.
 type MySQL struct {
 	Username string `yaml:"username"`
-	Password string `yaml:"password"`
 	Database string `yaml:"database"`
 }
 
 // GetConnectionString returns MySQL connection string.
 func (m *MySQL) GetConnectionString() string {
 	// Fetch required environment variables.
-	password := os.Getenv("MYSQL_PASSWORD")
 	connectionStr := fmt.Sprintf("%s:@tcp(localhost:3306)/%s?charset=utf8&parseTime=True&loc=Local", m.Username, m.Database)
 
 	return connectionStr
