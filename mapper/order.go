@@ -2,11 +2,29 @@ package mapper
 
 import (
 	"github.com/kitchen-delivery/entity"
+	"github.com/kitchen-delivery/entity/endpoint"
 	"github.com/kitchen-delivery/service/repository/record"
 
 	"github.com/pkg/errors"
 	guuid "github.com/satori/go.uuid"
 )
+
+// CreateOrderRequestToOrder maps a HTTP create order request to an order entity.
+func CreateOrderRequestToOrder(createOrderRequest endpoint.CreateOrderRequest) (*entity.Order, error) {
+	order := entity.Order{
+		Name:      createOrderRequest.Name,
+		Temp:      entity.OrderTemp(createOrderRequest.Temp),
+		ShelfLife: createOrderRequest.ShelfLife,
+		DecayRate: createOrderRequest.DecayRate,
+	}
+
+	err := order.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	return &order, nil
+}
 
 // OrderToRecord maps an order entity to an order record.
 func OrderToRecord(order entity.Order) record.Order {

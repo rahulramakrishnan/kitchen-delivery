@@ -1,9 +1,12 @@
 package order
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/kitchen-delivery/config"
+	"github.com/kitchen-delivery/entity/endpoint"
+	"github.com/kitchen-delivery/mapper"
 	"github.com/kitchen-delivery/service"
 )
 
@@ -27,6 +30,46 @@ func NewHandler(appConfig config.AppConfig, services service.Services) Handler {
 
 // HandleOrder either creates an order, or sends an order back to a driver.
 func (o *orderHandler) HandleOrder(w http.ResponseWriter, r *http.Request) {
+	// Parse form so we can access key value pairs of post request.
+	err := r.ParseForm()
+	if err != nil {
+		msg := fmt.Sprintf("failed to parse form | err: %+v", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(msg))
+		return
+	}
+
+	// We map key, value pair http request to a request entity.
+	// We check if there are any errors in the submission and return an error if there is.
+	formData := endpoint.FormData(r.PostForm)
+	requiredFields := []string{"name", "temp", "shelfLife", ""}
+	createOrderRequest := endpoint.CreateOrderRequest{}
+	err = endpoint.ExtractRequest(formData, requiredFields, &createOrderRequest)
+	if err != nil {
+		msg := fmt.Sprintf("failed to handle create order request %+v", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(msg))
+		return
+	}
+
+	// Map a HTTP create order request to an order entity.
+	order, err := mapper.CreateOrderRequestToOrder(createOrderRequest)
+	if err != nil {
+		msg := fmt.Sprintf("failed to map create order request to order %+v", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(msg))
+		return
+	}
+
+	// TODO: put on a channel that get's pulled off of by workers spawned at start time.
+	err = o.services.Order.Create(order)
+	if err != nil {
+		msg := fmt.Sprintf("failed to store order %+v", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(msg))
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
 }
