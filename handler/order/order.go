@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/kitchen-delivery/config"
+	"github.com/kitchen-delivery/service"
 )
 
 // Handler is Health handler interface.
@@ -12,13 +13,15 @@ type Handler interface {
 }
 
 type orderHandler struct {
-	cfg config.AppConfig
+	cfg      config.AppConfig
+	services service.Services
 }
 
 // NewHandler creates a new HTTP order handler instance.
-func NewHandler(appConfig config.AppConfig) Handler {
+func NewHandler(appConfig config.AppConfig, services service.Services) Handler {
 	return &orderHandler{
-		cfg: appConfig,
+		cfg:      appConfig,
+		services: services,
 	}
 }
 

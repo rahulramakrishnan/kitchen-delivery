@@ -6,6 +6,8 @@ import (
 
 	"github.com/kitchen-delivery/config"
 	"github.com/kitchen-delivery/handler"
+	"github.com/kitchen-delivery/service"
+	"github.com/kitchen-delivery/service/repository"
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
@@ -31,9 +33,15 @@ func main() {
 	defer db.Close()
 
 	////////////////////////////////////////
+	// Service Initialization
+	////////////////////////////////////////
+	repositories := repository.InitializeRepositories(db)
+	services := service.InitializeServices(cfg, repositories)
+
+	////////////////////////////////////////
 	// Handler Initialization
 	////////////////////////////////////////
-	handlers, err := handler.NewHandlers(cfg)
+	handlers, err := handler.NewHandlers(cfg, services)
 	if err != nil {
 		log.Fatalf("Failed to initialize handlers - err: %+v", err)
 	}
