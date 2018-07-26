@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/kitchen-delivery/config"
+	"github.com/kitchen-delivery/entity"
 	"github.com/kitchen-delivery/entity/endpoint"
 	"github.com/kitchen-delivery/mapper"
 	"github.com/kitchen-delivery/service"
@@ -19,13 +20,15 @@ type Handler interface {
 type orderHandler struct {
 	cfg      config.AppConfig
 	services service.Services
+	queue    chan<- *entity.Order // we only send to this channel
 }
 
 // NewHandler creates a new HTTP order handler instance.
-func NewHandler(appConfig config.AppConfig, services service.Services) Handler {
+func NewHandler(appConfig config.AppConfig, services service.Services, queue chan<- *entity.Order) Handler {
 	return &orderHandler{
 		cfg:      appConfig,
 		services: services,
+		queue:    queue,
 	}
 }
 
@@ -68,15 +71,11 @@ func (o *orderHandler) HandleOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: put on a channel that get's pulled off of by workers spawned at start time.
-	err = o.services.Order.Create(*order)
-	if err != nil {
-		msg := fmt.Sprintf("failed to store order %+v", err.Error())
-		log.Println(msg)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(msg))
-		return
-	}
+	// Place order on queue which multiple worker threads pull off
+	// concurrently. This is increases the throughput that our API can handle.
+	// We purposesfully do not close this channel because we want to keep it open
+	// for workers to continue pulling indefinitely.
+	o.queue <- order
 
 	// Send back order uuid to client on success.
 	// This will support client-polling and allow for idempotency.

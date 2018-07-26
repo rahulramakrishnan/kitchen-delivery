@@ -5,7 +5,9 @@ import (
 	"net/http"
 
 	"github.com/kitchen-delivery/config"
+	"github.com/kitchen-delivery/entity"
 	"github.com/kitchen-delivery/handler"
+	"github.com/kitchen-delivery/job"
 	"github.com/kitchen-delivery/service"
 	"github.com/kitchen-delivery/service/repository"
 
@@ -39,9 +41,22 @@ func main() {
 	services := service.InitializeServices(cfg, repositories)
 
 	////////////////////////////////////////
+	// Local Queue Initialization
+	////////////////////////////////////////
+	orderQueue := make(chan *entity.Order)
+
+	////////////////////////////////////////
+	// Job Initialization
+	////////////////////////////////////////
+	jobs := job.InitializeJobs(cfg, services, orderQueue)
+
+	// Spawn workers to pull orders off of order queue.
+	go jobs.Order.HandleOrders()
+
+	////////////////////////////////////////
 	// Handler Initialization
 	////////////////////////////////////////
-	handlers, err := handler.NewHandlers(cfg, services)
+	handlers, err := handler.NewHandlers(cfg, services, orderQueue)
 	if err != nil {
 		log.Fatalf("Failed to initialize handlers - err: %+v", err)
 	}

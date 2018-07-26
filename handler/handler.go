@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/kitchen-delivery/config"
+	"github.com/kitchen-delivery/entity"
 	"github.com/kitchen-delivery/handler/health"
 	"github.com/kitchen-delivery/handler/order"
 	"github.com/kitchen-delivery/service"
@@ -14,9 +15,9 @@ type Handlers struct {
 }
 
 // NewHandlers returns new HTTP handlers.
-func NewHandlers(cfg config.AppConfig, services service.Services) (*Handlers, error) {
+func NewHandlers(cfg config.AppConfig, services service.Services, orderQueue chan<- *entity.Order) (*Handlers, error) {
 	healthHandler := health.NewHandler(cfg)
-	orderHandler := order.NewHandler(cfg, services)
+	orderHandler := order.NewHandler(cfg, services, orderQueue)
 
 	return &Handlers{
 		Health: healthHandler,
