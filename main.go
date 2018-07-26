@@ -34,6 +34,8 @@ func main() {
 	}
 	defer db.Close()
 
+	// TODO: Initialize Redis connection.
+
 	////////////////////////////////////////
 	// Service Initialization
 	////////////////////////////////////////
@@ -50,7 +52,8 @@ func main() {
 	////////////////////////////////////////
 	jobs := job.InitializeJobs(cfg, services, orderQueue)
 
-	// Spawn workers to pull orders off of order queue.
+	// Spawn workers to pull orders off of order queue
+	// as orders com in.
 	go jobs.Order.HandleOrders()
 
 	////////////////////////////////////////

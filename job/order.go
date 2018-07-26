@@ -42,11 +42,13 @@ func (o *orderJob) HandleOrders() {
 func (o *orderJob) handleOrder(order entity.Order) {
 	log.Printf("pulled order off of queue order: %+v", order)
 
-	err := o.services.Order.Create(order)
-	if err != nil {
-		// TODO: store job status in a table.
-		log.Printf("failed to create an order err: %+v", err)
-	}
+	// 0. Calculate ttl w/ formula.
+	// 1. Check size of shelf.
+	// 2. Place on shelf or overflow shelf w/ appropriate ttl.
+	// 3. Create order history entry w/ order uuid, shelf, ttl.
+	// 4. Place item in Redis priority queue w/ ttl as score.
 
 	log.Printf("successfull stored order %+v", order)
+
+	// Now place order on shelf.
 }

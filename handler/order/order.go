@@ -54,7 +54,7 @@ func (o *orderHandler) HandleOrder(w http.ResponseWriter, r *http.Request) {
 	createOrderRequest := endpoint.CreateOrderRequest{}
 	err = endpoint.ExtractRequest(formData, fieldsToExtract, &createOrderRequest)
 	if err != nil {
-		msg := fmt.Sprintf("failed to handle create order request %+v", err.Error())
+		msg := fmt.Sprintf("failed to handle create order request %+v", err)
 		log.Println(msg)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(msg))
@@ -64,7 +64,17 @@ func (o *orderHandler) HandleOrder(w http.ResponseWriter, r *http.Request) {
 	// Map a HTTP create order request to an order entity.
 	order, err := mapper.CreateOrderRequestToOrder(createOrderRequest)
 	if err != nil {
-		msg := fmt.Sprintf("failed to map create order request to order %+v", err.Error())
+		msg := fmt.Sprintf("failed to map create order request to order %+v", err)
+		log.Println(msg)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(msg))
+		return
+	}
+
+	// Persist order to DB, before returning success to client.
+	err = o.services.Order.Create(*order)
+	if err != nil {
+		msg := fmt.Sprintf("failed to store order %+v", err)
 		log.Println(msg)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(msg))
