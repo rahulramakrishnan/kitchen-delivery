@@ -28,7 +28,7 @@ func NewOrderService(repository repository.OrderRepository) OrderService {
 func (o *orderService) Create(order entity.Order) error {
 	err := o.repository.Create(order)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create order %+v", order)
+		return errors.Wrapf(err, "failed to create order, order: %+v", order)
 	}
 
 	return nil

@@ -52,6 +52,7 @@ func main() {
 
 	// Register service health routes.
 	http.HandleFunc("/health", handlers.Health.CheckHealth)
+	http.HandleFunc("/health/order", handlers.Health.CreateOrder)
 
 	// Register order routes.
 	http.HandleFunc("/order", handlers.Order.HandleOrder)

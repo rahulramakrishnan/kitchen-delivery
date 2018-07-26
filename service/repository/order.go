@@ -2,11 +2,13 @@ package repository
 
 import (
 	"github.com/kitchen-delivery/entity"
-	"github.com/kitchen-delivery/service/mapper"
+	"github.com/kitchen-delivery/entity/exception"
+	"github.com/kitchen-delivery/mapper"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 )
 
 // OrderRepository is the user repository interface.
@@ -27,10 +29,14 @@ func NewOrderRepository(db *gorm.DB) OrderRepository {
 
 // Create stores an order into the orders table.
 func (o *orderRepository) Create(order entity.Order) error {
-	record := mapper.OrderToRecord(order)
+	record, err := mapper.OrderToRecord(order)
+	if err != nil {
+		return errors.Wrapf(
+			exception.ErrInvalidInput, "failed to map order to record, err: %+v", err)
+	}
 
 	tx := o.db.Begin()
-	err := tx.Create(&record).Error
+	err = tx.Create(&record).Error
 
 	// We ensure idempotency on creation using order UUID.
 	if mysqlErr, ok := err.(*mysql.MySQLError); ok {
@@ -42,7 +48,8 @@ func (o *orderRepository) Create(order entity.Order) error {
 
 	if err != nil {
 		tx.Rollback()
-		return err
+		return errors.Wrapf(
+			exception.ErrDatabase, "failed to store order, err: %+v", err)
 	}
 
 	tx.Commit()

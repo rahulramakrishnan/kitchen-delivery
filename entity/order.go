@@ -44,7 +44,7 @@ var AllOrderTemp = map[OrderTemp]bool{
 func (o *Order) Validate() error {
 	_, ok := AllOrderTemp[o.Temp]
 	if !ok {
-		return errors.Wrapf(exception.ErrInvalidInput, "temp value is not valid %s", o.Temp)
+		return errors.Wrapf(exception.ErrInvalidInput, "temp value is invalid, temp: %s", o.Temp)
 	}
 
 	return nil

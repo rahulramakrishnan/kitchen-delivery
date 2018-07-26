@@ -10,6 +10,8 @@ import (
 type Handler interface {
 	// CheckHealth verifies that the service is running and reachable.
 	CheckHealth(w http.ResponseWriter, r *http.Request)
+	// CreateOrder verifies that our create order endpoint is functioning as expected.
+	CreateOrder(w http.ResponseWriter, r *http.Request)
 }
 
 type healthHandler struct {
