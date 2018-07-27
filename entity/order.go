@@ -16,7 +16,7 @@ type Order struct {
 	Temp      OrderTemp // temperature, enum: ['hot', 'cold', 'frozen']
 	ShelfLife int       // shelf life in seconds
 	DecayRate float64   // decay rate ex: 0.45
-	CreatedAt time.Time
+	CreatedAt time.Time // no updated at b/c this is an immutable table
 }
 
 // OrderTemp is order temperature enum.

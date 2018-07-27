@@ -2,7 +2,7 @@ package record
 
 import "time"
 
-// Order struct is a record user literal.
+// Order is an order record.
 type Order struct {
 	UUID      string    `gorm:"column:uuid;primary_key"`
 	Name      string    `gorm:"column:name"`

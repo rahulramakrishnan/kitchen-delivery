@@ -72,7 +72,7 @@ func (o *orderHandler) HandleOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Persist order to DB, before returning success to client.
-	err = o.services.Order.Create(*order)
+	err = o.services.Order.CreateOrder(*order)
 	if err != nil {
 		msg := fmt.Sprintf("failed to store order %+v", err)
 		log.Println(msg)
