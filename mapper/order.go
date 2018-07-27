@@ -37,10 +37,7 @@ func CreateOrderRequestToOrder(createOrderRequest endpoint.CreateOrderRequest) (
 		}
 	} else {
 		// If not uuid is passed, we generate a new order uuid.
-		orderUUID, err = guuid.NewV4()
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create a new uuid - err: %s", err)
-		}
+		orderUUID = guuid.NewV4()
 	}
 
 	order := entity.Order{
@@ -73,12 +70,7 @@ func OrderToRecord(order entity.Order) (*record.Order, error) {
 	// We set a random uuid for order if there is not one passed in.
 	nullUUID := guuid.NullUUID{}
 	if nullUUID.UUID == order.UUID {
-		newUUID, err := guuid.NewV4()
-		if err != nil {
-			return nil, err
-		}
-
-		record.UUID = newUUID.String()
+		record.UUID = guuid.NewV4().String()
 	}
 
 	return &record, nil

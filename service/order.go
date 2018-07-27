@@ -14,22 +14,29 @@ type OrderService interface {
 }
 
 type orderService struct {
-	repository repository.OrderRepository
+	orderRepository repository.OrderRepository
+	shelfRepository repository.ShelfRepository
 }
 
 // NewOrderService returns a new user service.
 // switch to userRepositories
-func NewOrderService(repository repository.OrderRepository) OrderService {
+func NewOrderService(orderRepository repository.OrderRepository, shelfRepository repository.ShelfRepository) OrderService {
 	return &orderService{
-		repository: repository,
+		orderRepository: orderRepository,
+		shelfRepository: shelfRepository,
 	}
 }
 
 // Create stores an order in the orders table.
 func (o *orderService) CreateOrder(order entity.Order) error {
-	err := o.repository.CreateOrder(order)
+	err := o.orderRepository.CreateOrder(order)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create order, order: %+v", order)
+	}
+
+	err = o.shelfRepository.AddOrder(order)
+	if err != nil {
+		return errors.Wrapf(err, "failed to add order, order: %+v", order)
 	}
 
 	return nil
@@ -37,7 +44,7 @@ func (o *orderService) CreateOrder(order entity.Order) error {
 
 // CreateOrderLog creates an order history event.
 func (o *orderService) CreateOrderLog(orderLog entity.OrderLog) error {
-	err := o.repository.CreateOrderLog(orderLog)
+	err := o.orderRepository.CreateOrderLog(orderLog)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create order history %+v", orderLog)
 	}

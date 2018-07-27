@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gomodule/redigo/redis"
 	"github.com/kitchen-delivery/config"
 	"github.com/kitchen-delivery/entity"
 	"github.com/kitchen-delivery/handler"
@@ -25,21 +26,28 @@ func main() {
 		log.Fatalf("Failed to load configuration from yaml files - err: %+v", err)
 	}
 
-	// Initialize a MySQL DB connection.
-	connectionString := cfg.Databases.MySQL.GetConnectionString()
+	////////////////////////////////////////
+	// Storage Initialization
+	////////////////////////////////////////
 
-	db, err := gorm.Open("mysql", connectionString)
+	// Open connection to MySQL instance.
+	db, err := gorm.Open("mysql", cfg.Databases.MySQL.GetConnectionString())
 	if err != nil {
-		log.Fatalf("Failed to connect to mysql database - err: %+v", err)
+		log.Fatalf("Failed to connect to mysql database %+v", err)
 	}
 	defer db.Close()
 
-	// TODO: Initialize Redis connection.
+	// Open connection to Redis instance.
+	redisConn, err := redis.Dial("tcp", ":6379")
+	if err != nil {
+		log.Fatalf("Failed to connect to redis instance %+v", err)
+	}
+	defer redisConn.Close()
 
 	////////////////////////////////////////
 	// Service Initialization
 	////////////////////////////////////////
-	repositories := repository.InitializeRepositories(db)
+	repositories := repository.InitializeRepositories(db, redisConn)
 	services := service.InitializeServices(cfg, repositories)
 
 	////////////////////////////////////////
@@ -48,12 +56,12 @@ func main() {
 	orderQueue := make(chan *entity.Order)
 
 	////////////////////////////////////////
-	// Job Initialization
+	// Job & Worker Initialization
 	////////////////////////////////////////
 	jobs := job.InitializeJobs(cfg, services, orderQueue)
 
 	// Spawn workers to pull orders off of order queue
-	// as orders com in.
+	// as orders come in.
 	go jobs.Order.HandleOrders()
 
 	////////////////////////////////////////

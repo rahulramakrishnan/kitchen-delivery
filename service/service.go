@@ -12,7 +12,7 @@ type Services struct {
 
 // InitializeServices initializes service layer.
 func InitializeServices(cfg config.AppConfig, repositories repository.Repositories) Services {
-	orderService := NewOrderService(repositories.Order)
+	orderService := NewOrderService(repositories.Order, repositories.Shelf)
 
 	return Services{
 		Order: orderService,

@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// OrderRepository is the user repository interface.
+// OrderRepository is the order repository interface.
 type OrderRepository interface {
 	CreateOrder(order entity.Order) error
 	CreateOrderLog(orderLog entity.OrderLog) error
@@ -28,7 +28,7 @@ func NewOrderRepository(db *gorm.DB) OrderRepository {
 	}
 }
 
-// Create stores an order into the orders table.
+// CreateOrder stores an order into the orders table.
 func (o *orderRepository) CreateOrder(order entity.Order) error {
 	// Map order entity to order record.
 	record, err := mapper.OrderToRecord(order)

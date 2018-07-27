@@ -22,12 +22,7 @@ func OrderLogToRecord(orderLog entity.OrderLog) (*record.OrderLog, error) {
 	// if there is not one passed in.
 	nullUUID := guuid.NullUUID{}
 	if nullUUID.UUID == orderLog.UUID {
-		newUUID, err := guuid.NewV4()
-		if err != nil {
-			return nil, err
-		}
-
-		record.UUID = newUUID.String()
+		record.UUID = guuid.NewV4().String()
 	}
 
 	return &record, nil

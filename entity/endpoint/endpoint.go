@@ -6,7 +6,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/bankroll/entity/exception"
+	"github.com/kitchen-delivery/entity/exception"
 	"github.com/pkg/errors"
 )
 
