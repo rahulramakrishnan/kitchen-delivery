@@ -121,12 +121,22 @@ func (o *orderHandler) createOrder(w http.ResponseWriter, r *http.Request) {
 func (o *orderHandler) pickupOrder(w http.ResponseWriter, r *http.Request) {
 	order, err := o.services.Order.PickupOrder()
 	if err != nil {
-		msg := fmt.Sprintf("failed to pickup order - err: %s", err)
-		log.Println(msg)
+		switch errors.Cause(err) {
+		case exception.ErrNotFound:
+			msg := fmt.Sprintf("no more orders - err: %s", err)
+			log.Println(msg)
 
-		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(msg))
-		return
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(msg))
+			return
+		default:
+			msg := fmt.Sprintf("failed to pickup order - err: %s", err)
+			log.Println(msg)
+
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(msg))
+			return
+		}
 	}
 
 	// Stringify the contents of the order.

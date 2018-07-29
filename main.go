@@ -38,6 +38,8 @@ func main() {
 	defer db.Close()
 
 	// Open connection to Redis instance.
+	// TODO: Use this as a first in first out queue.
+	// Instead of the channel.
 	redisConn, err := redis.Dial("tcp", ":6379")
 	if err != nil {
 		log.Fatalf("Failed to connect to redis instance %+v", err)
@@ -54,15 +56,23 @@ func main() {
 	// Local Queue Initialization
 	////////////////////////////////////////
 	orderQueue := make(chan *entity.Order)
+	shelfOrderQueue := make(chan *entity.Order)
+	queues := entity.Queues{
+		OrderQueue: orderQueue,
+		ShelfQueue: shelfOrderQueue,
+	}
 
 	////////////////////////////////////////
 	// Job & Worker Initialization
 	////////////////////////////////////////
-	jobs := job.InitializeJobs(cfg, services, orderQueue)
+	jobs := job.InitializeJobs(cfg, services, queues)
 
 	// Spawn workers to pull orders off of order queue
 	// as orders come in.
-	go jobs.Order.HandleOrders()
+	go jobs.Order.HandleIncomingOrders()
+
+	// Spawn thread to remove expired orders.
+	go jobs.Order.RemoveExpiredOrders()
 
 	////////////////////////////////////////
 	// Handler Initialization

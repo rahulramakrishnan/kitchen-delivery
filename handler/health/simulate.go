@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/kitchen-delivery/entity/endpoint"
+	stats "github.com/r0fls/gostats"
 )
 
 // Simulate launches a Kitchen Delivery system simulation.
@@ -109,10 +110,12 @@ func (h *healthHandler) submitOrderRequest(order endpoint.OrderJSON) error {
 
 // sendDriversToPickupOrders sends drivers to pickup orders.
 func (h *healthHandler) sendDriversToPickupOrders() {
-	// TODO: Send driver infinitely.
+	// TODO: Send drivers until there are no more orders.
 	for i := 0; i < 100; i++ {
-		// TODO: Launch drivers w/ a poison distribution.
-		time.Sleep(250 * time.Millisecond)
+		// TODO: Load mean into config.
+		p := stats.Poisson(3)
+		numOfSeconds := p.Random()
+		time.Sleep(time.Duration(numOfSeconds) * time.Second)
 
 		err := h.sendDriverToPickupOrder(i)
 		if err != nil {
@@ -143,11 +146,15 @@ func (h *healthHandler) sendDriverToPickupOrder(driverNum int) error {
 
 	// If request was not successful then return the content
 	// of the response as the error.
-	if resp.StatusCode != http.StatusOK {
+	switch resp.StatusCode {
+	case http.StatusOK:
+		log.Printf("successfull picked up order %s", content)
+		return nil
+	case http.StatusNotFound:
+		log.Println("no more orders to pick up")
+		return fmt.Errorf("%s", content)
+	default:
 		log.Println("failed to pick up order")
 		return fmt.Errorf("%s", content)
 	}
-
-	log.Printf("successfull picked up order %s", content)
-	return nil
 }

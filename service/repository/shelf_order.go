@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/kitchen-delivery/entity"
 	"github.com/kitchen-delivery/entity/exception"
 	"github.com/kitchen-delivery/mapper"
@@ -19,6 +21,7 @@ type ShelfOrderRepository interface {
 	CountOrdersOnShelf(shelfType entity.ShelfType) (int, error)
 	UpdateOrderStatus(shelfOrder entity.ShelfOrder, orderStatus entity.OrderStatus) error
 	GetOpenOrder() (*entity.ShelfOrder, error)
+	GetExpiredOrders() ([]*entity.ShelfOrder, error)
 }
 
 type shelfRepository struct {
@@ -143,4 +146,32 @@ func (s *shelfRepository) GetOpenOrder() (*entity.ShelfOrder, error) {
 	}
 
 	return shelfOrder, nil
+}
+
+// GetExpiredOrders returns orders that have expired.
+func (s *shelfRepository) GetExpiredOrders() ([]*entity.ShelfOrder, error) {
+	var shelfOrderRecords []*record.ShelfOrder
+	now := time.Now()
+
+	err := s.db.
+		// Only return orders ready for pick up.
+		Where("order_status = ?", string(entity.OrderStatusReadyForPickup)).
+		Where("expires_at < ?", now.String()). // records that have already expired
+		Find(&shelfOrderRecords).Error
+	if err == gorm.ErrRecordNotFound {
+		// Finding expired orders .
+		return nil, nil
+	}
+	if err != nil {
+		return nil, errors.Wrap(exception.ErrDatabase, err.Error())
+	}
+
+	// Map records to shelf orders.
+	shelfOrders, err := mapper.RecordsToShelfOrders(shelfOrderRecords)
+	if err != nil {
+		return nil, errors.Wrapf(
+			exception.ErrDataCorrupted, "failed to map record to shelf order - err: %s", err.Error())
+	}
+
+	return shelfOrders, nil
 }

@@ -17,6 +17,8 @@ type OrderService interface {
 	CreateOrder(order entity.Order) error
 	PlaceOrderOnShelf(order entity.Order) error
 	PickupOrder() (*entity.Order, error)
+	GetExpiredOrdersOnShelf() ([]*entity.ShelfOrder, error)
+	MarkOrderAsWasted(entity.ShelfOrder) error
 }
 
 type orderService struct {
@@ -58,31 +60,48 @@ func (o *orderService) CreateOrder(order entity.Order) error {
 // PlaceOrderOnShelf places an order on the shelf.
 func (o *orderService) PlaceOrderOnShelf(order entity.Order) error {
 	// Check count of orders in "hot" w/ status of ready for pick up.
-	shelfType := order.GetShelfType()
-	numOfOrders, err := o.shelfOrderRepository.CountOrdersOnShelf(shelfType)
+	correspondingShelfType := order.GetShelfType()
+	numOfOrders, err := o.shelfOrderRepository.CountOrdersOnShelf(correspondingShelfType)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create order %+v", order)
 	}
 
-	// If num of orders on shelf is greater than allowed limit
-	// then we return a retriable error to the consumer.
-	if numOfOrders > o.shelfSpace[shelfType] {
+	// We try to place the order on the right shelf but we first
+	// have to check the current num of items on both the corresponding shelf
+	// and the overflow shelf.
+	isCorrespondingShelfFull := numOfOrders > o.shelfSpace[correspondingShelfType]
+	isOverflowShelfFull := numOfOrders > o.shelfSpace[entity.OverflowShelf]
+
+	// First, if both the corresponding shelf and the overflow shelf are full
+	// we throw a retriable service full shelf exception so a caller can handle it explictly.
+	areAllShelvesFull := isCorrespondingShelfFull && isOverflowShelfFull
+	if areAllShelvesFull {
 		return errors.Wrap(
-			exception.ErrServiceUnavailable, "all shelves are filled, please retry again later")
+			exception.ErrFullShelf, "all shelves are filled, please retry again later")
 	}
 
-	// Otherwise we:
-	//    a. calculate ttl and expiration date
-	//    b. form a shelf order w/ version 0
-	//    c. store order in mysql table shelf_orders
+	var shelfType entity.ShelfType
+
+	// Second, we check if we can place the order on the corresponding shelf.
+	if !isCorrespondingShelfFull {
+		shelfType = order.GetShelfType()
+	} else { // If we cannot, we know we can place it on the overflow shelf is not full.
+		shelfType = entity.OverflowShelf
+	}
+
+	// Next:
+	//    a. Calculate ttl and expiration date
+	//    b. Form a shelf order w/ version 0
+	//    c. Place shelf order on a queue that the kitchen pulls off of.
 
 	ttl := o.getTTL(order)
-	expirationDate := time.Now().Add(time.Second * time.Duration(ttl)).UTC()
+	now := time.Now()
+	expirationDate := now.Add(time.Second * time.Duration(ttl))
 
 	shelfOrder := entity.ShelfOrder{
 		UUID:        guuid.NewV4(),
 		OrderUUID:   order.UUID,
-		ShelfType:   order.GetShelfType(),
+		ShelfType:   shelfType,
 		OrderStatus: entity.OrderStatusReadyForPickup,
 		Version:     0,
 		ExpiresAt:   expirationDate,
@@ -131,4 +150,23 @@ func (o *orderService) PickupOrder() (*entity.Order, error) {
 	}
 
 	return order, nil
+}
+
+func (o *orderService) GetExpiredOrdersOnShelf() ([]*entity.ShelfOrder, error) {
+	shelfOrders, err := o.shelfOrderRepository.GetExpiredOrders()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch expired orders on shelf")
+	}
+
+	return shelfOrders, nil
+}
+
+func (o *orderService) MarkOrderAsWasted(shelfOrder entity.ShelfOrder) error {
+	newOrderStatus := entity.OrderStatusWasted
+	err := o.shelfOrderRepository.UpdateOrderStatus(shelfOrder, newOrderStatus)
+	if err != nil {
+		return errors.Wrapf(err, "faield to mark order as wasted %s", err.Error())
+	}
+
+	return nil
 }

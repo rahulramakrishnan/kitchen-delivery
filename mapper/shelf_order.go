@@ -30,6 +30,22 @@ func ShelfOrderToRecord(shelfOrder entity.ShelfOrder) record.ShelfOrder {
 	return record
 }
 
+// RecordsToShelfOrders maps shelf order records to shelf order entities.
+func RecordsToShelfOrders(records []*record.ShelfOrder) ([]*entity.ShelfOrder, error) {
+	var shelfOrders []*entity.ShelfOrder
+
+	for _, record := range records {
+		shelfOrder, err := RecordToShelfOrder(*record)
+		if err != nil {
+			return nil, err
+		}
+
+		shelfOrders = append(shelfOrders, shelfOrder)
+	}
+
+	return shelfOrders, nil
+}
+
 // RecordToShelfOrder maps a shelf order record to an shelf order entity.
 func RecordToShelfOrder(record record.ShelfOrder) (*entity.ShelfOrder, error) {
 	uuid, err := guuid.FromString(record.UUID)
