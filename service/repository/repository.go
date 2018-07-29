@@ -7,18 +7,18 @@ import (
 
 // Repositories stores MySQL DB drivers.
 type Repositories struct {
-	Order OrderRepository
-	Shelf ShelfRepository
+	Order      OrderRepository
+	ShelfOrder ShelfOrderRepository
 }
 
 // InitializeRepositories initializes repositories.
 func InitializeRepositories(db *gorm.DB, redisConn redis.Conn) Repositories {
 	orderRepository := NewOrderRepository(db)
-	shelfRepository := NewShelfRepository(redisConn)
+	shelfOrderRepository := NewShelfOrderRepository(db, redisConn)
 
 	repositories := Repositories{
-		Order: orderRepository,
-		Shelf: shelfRepository,
+		Order:      orderRepository,
+		ShelfOrder: shelfOrderRepository,
 	}
 
 	return repositories

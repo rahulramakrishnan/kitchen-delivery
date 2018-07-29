@@ -66,7 +66,7 @@ func (h *healthHandler) submitOrderRequests(orders []endpoint.OrderJSON) {
 		if err != nil {
 			// We fail open here as we don't want an error in
 			// the creation of one order to stop the creation of subsequent ones.
-			msg := fmt.Sprintf("failed to submit order request err: %+v", err)
+			msg := fmt.Sprintf("failed to submit order request err: %s", err)
 			log.Println(msg)
 		}
 	}

@@ -44,8 +44,23 @@ var AllOrderTemp = map[OrderTemp]bool{
 func (o *Order) Validate() error {
 	_, ok := AllOrderTemp[o.Temp]
 	if !ok {
-		return errors.Wrapf(exception.ErrInvalidInput, "temp value is invalid, temp: %s", o.Temp)
+		return errors.Wrapf(
+			exception.ErrInvalidInput, "temp value is invalid, temp: %s", o.Temp)
 	}
 
 	return nil
+}
+
+// GetShelfType returns shelf name based on order temp.
+func (o *Order) GetShelfType() ShelfType {
+	switch o.Temp {
+	case OrderTempHot:
+		return HotShelf
+	case OrderTempCold:
+		return ColdShelf
+	case OrderTempFrozen:
+		return FrozenShelf
+	default:
+		return OverflowShelf
+	}
 }

@@ -9,6 +9,9 @@ var (
 	ErrDatabase = errors.New("Database Exception")
 	// ErrInvalidInput is an invalid input exception.
 	ErrInvalidInput = errors.New("Invalid Input Exception")
+	// ErrVersionInvalid is an optimistic locking exception
+	// that is thrown when the record has been updated.
+	ErrVersionInvalid = errors.New("Invalid Version Exception")
 	// ErrUnauthorized is an unauthorized exception.
 	ErrUnauthorized = errors.New("Unauthorized Exception")
 	// ErrNotFound is a not found exception.
