@@ -76,9 +76,9 @@ func main() {
 	// HTTP Route Initialization
 	////////////////////////////////////////
 
-	// Register service health routes.
+	// Register service health and simulation routes.
 	http.HandleFunc("/health", handlers.Health.CheckHealth)
-	http.HandleFunc("/health/order", handlers.Health.CreateOrder)
+	http.HandleFunc("/health/simulate", handlers.Health.Simulate)
 
 	// Register order routes.
 	http.HandleFunc("/order", handlers.Order.HandleOrder)

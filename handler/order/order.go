@@ -8,8 +8,11 @@ import (
 	"github.com/kitchen-delivery/config"
 	"github.com/kitchen-delivery/entity"
 	"github.com/kitchen-delivery/entity/endpoint"
+	"github.com/kitchen-delivery/entity/exception"
 	"github.com/kitchen-delivery/mapper"
 	"github.com/kitchen-delivery/service"
+
+	"github.com/pkg/errors"
 )
 
 // Handler is Health handler interface.
@@ -34,10 +37,21 @@ func NewHandler(appConfig config.AppConfig, services service.Services, queue cha
 
 // HandleOrder either creates an order, or sends an order back to a driver.
 func (o *orderHandler) HandleOrder(w http.ResponseWriter, r *http.Request) {
+	// If request is a HTTP GET then we send back an order.
+	if r.Method == http.MethodGet {
+		o.pickupOrder(w, r)
+		return
+	}
+
+	o.createOrder(w, r)
+}
+
+func (o *orderHandler) createOrder(w http.ResponseWriter, r *http.Request) {
+	// Otherwise we handle an order creation w/ an HTTP POST request.
 	// Parse form so we can access key value pairs of post request.
 	err := r.ParseForm()
 	if err != nil {
-		msg := fmt.Sprintf("failed to parse form err: %+v", err)
+		msg := fmt.Sprintf("failed to parse form - err: %s", err)
 		log.Println(msg)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(msg))
@@ -54,7 +68,7 @@ func (o *orderHandler) HandleOrder(w http.ResponseWriter, r *http.Request) {
 	createOrderRequest := endpoint.CreateOrderRequest{}
 	err = endpoint.ExtractRequest(formData, fieldsToExtract, &createOrderRequest)
 	if err != nil {
-		msg := fmt.Sprintf("failed to handle create order request %+v", err)
+		msg := fmt.Sprintf("failed to handle create order request - err: %s", err)
 		log.Println(msg)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(msg))
@@ -64,7 +78,7 @@ func (o *orderHandler) HandleOrder(w http.ResponseWriter, r *http.Request) {
 	// Map a HTTP create order request to an order entity.
 	order, err := mapper.CreateOrderRequestToOrder(createOrderRequest)
 	if err != nil {
-		msg := fmt.Sprintf("failed to map create order request to order %+v", err)
+		msg := fmt.Sprintf("failed to map create order request to order - err: %s", err)
 		log.Println(msg)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(msg))
@@ -74,9 +88,17 @@ func (o *orderHandler) HandleOrder(w http.ResponseWriter, r *http.Request) {
 	// Persist order to DB, before returning success to client.
 	err = o.services.Order.CreateOrder(*order)
 	if err != nil {
-		msg := fmt.Sprintf("failed to store order %+v", err)
+		if errors.Cause(err) == exception.ErrFullShelf {
+			msg := "shelf is full"
+			log.Println(msg)
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte(msg))
+			return
+		}
+
+		msg := fmt.Sprintf("failed to store order - err: %s", err)
 		log.Println(msg)
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write([]byte(msg))
 		return
 	}
@@ -93,4 +115,23 @@ func (o *orderHandler) HandleOrder(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(orderUUID.String()))
+}
+
+// pickupOrder picks up an order.
+func (o *orderHandler) pickupOrder(w http.ResponseWriter, r *http.Request) {
+	order, err := o.services.Order.PickupOrder()
+	if err != nil {
+		msg := fmt.Sprintf("failed to pickup order - err: %s", err)
+		log.Println(msg)
+
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte(msg))
+		return
+	}
+
+	// Stringify the contents of the order.
+	orderContents := order.String()
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(orderContents))
 }

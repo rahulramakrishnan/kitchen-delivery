@@ -13,8 +13,8 @@ import (
 	"github.com/kitchen-delivery/entity/endpoint"
 )
 
-// CheckHealth checks service health and returns 200 OK if reachable.
-func (h *healthHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
+// Simulate launches a Kitchen Delivery system simulation.
+func (h *healthHandler) Simulate(w http.ResponseWriter, r *http.Request) {
 	// Load order data from input json file, and make requests to
 	// kitchen-delivery's order endpoint.
 	jsonFile, err := os.Open("data/input.json")
@@ -51,13 +51,16 @@ func (h *healthHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	// Spawn thread to submit order requests asynchronously.
 	go h.submitOrderRequests(orders)
 
+	// Spawn thread to pickup order requests asynchronously.
+	go h.sendDriversToPickupOrders()
+
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
 }
 
 // submitOrderRequests submits orders to an orders endpoint.
 func (h *healthHandler) submitOrderRequests(orders []endpoint.OrderJSON) {
-	// TODO: make a request w/ the rate provided by the assignment.
+	// TODO: Move to job package and folder.
 	// Iterate over order requests and submit request.
 	for _, order := range orders {
 		time.Sleep(250 * time.Millisecond) // rate of submitting an order is 1/4th a second
@@ -66,7 +69,7 @@ func (h *healthHandler) submitOrderRequests(orders []endpoint.OrderJSON) {
 		if err != nil {
 			// We fail open here as we don't want an error in
 			// the creation of one order to stop the creation of subsequent ones.
-			msg := fmt.Sprintf("failed to submit order request err: %s", err)
+			msg := fmt.Sprintf("failed to submit order request err: %+v", err)
 			log.Println(msg)
 		}
 	}
@@ -98,8 +101,53 @@ func (h *healthHandler) submitOrderRequest(order endpoint.OrderJSON) error {
 			return fmt.Errorf("failed to read response body, err: %+v", err)
 		}
 
-		return fmt.Errorf("%+v", content)
+		return fmt.Errorf("%s", string(content))
 	}
 
+	return nil
+}
+
+// sendDriversToPickupOrders sends drivers to pickup orders.
+func (h *healthHandler) sendDriversToPickupOrders() {
+	// TODO: Send driver infinitely.
+	for i := 0; i < 100; i++ {
+		// TODO: Launch drivers w/ a poison distribution.
+		time.Sleep(250 * time.Millisecond)
+
+		err := h.sendDriverToPickupOrder(i)
+		if err != nil {
+			// We fail open here as we don't want an error in
+			// the creation of one order to stop the creation of subsequent ones.
+			msg := fmt.Sprintf("driver failed to pickup an order: %s", err)
+			log.Println(msg)
+		}
+	}
+}
+
+// submitOrderRequest submits an order creation HTTP request.
+func (h *healthHandler) sendDriverToPickupOrder(driverNum int) error {
+	log.Printf("sending driver %d to pick up order", driverNum)
+
+	resp, err := http.Get("http://localhost:8080/order")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	contentBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body, err: %+v", err)
+	}
+
+	content := string(contentBytes)
+
+	// If request was not successful then return the content
+	// of the response as the error.
+	if resp.StatusCode != http.StatusOK {
+		log.Println("failed to pick up order")
+		return fmt.Errorf("%s", content)
+	}
+
+	log.Printf("successfull picked up order %s", content)
 	return nil
 }

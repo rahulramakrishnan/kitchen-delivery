@@ -18,7 +18,7 @@ type ShelfOrderRepository interface {
 	AddOrderToShelf(shelfOrder entity.ShelfOrder) error
 	CountOrdersOnShelf(shelfType entity.ShelfType) (int, error)
 	UpdateOrderStatus(shelfOrder entity.ShelfOrder, orderStatus entity.OrderStatus) error
-	// PullOrder() (*entity.Order, error)
+	GetOpenOrder() (*entity.ShelfOrder, error)
 }
 
 type shelfRepository struct {
@@ -52,7 +52,7 @@ func (s *shelfRepository) AddOrderToShelf(shelfOrder entity.ShelfOrder) error {
 
 	if err != nil {
 		tx.Rollback()
-		return err
+		return errors.Wrapf(exception.ErrDatabase, "failed to add order to shelf - err: %s", err)
 	}
 
 	tx.Commit()
@@ -72,7 +72,8 @@ func (s *shelfRepository) CountOrdersOnShelf(shelfType entity.ShelfType) (int, e
 		Error
 
 	if err != nil {
-		return 0, errors.Wrapf(exception.ErrDatabase, "failed to count shelf orders %+v", err)
+		return 0, errors.Wrapf(
+			exception.ErrDatabase, "failed to count shelf orders - err: %s", err.Error())
 	}
 
 	return count, nil
@@ -116,4 +117,30 @@ func (s *shelfRepository) UpdateOrderStatus(shelfOrder entity.ShelfOrder, orderS
 	// If everything is successful we commit the txn.
 	tx.Commit()
 	return nil
+}
+
+// GetOpenOrder returns an order ready for pickup w/ the most soon expiration date.
+func (s *shelfRepository) GetOpenOrder() (*entity.ShelfOrder, error) {
+	var shelfOrderRecord record.ShelfOrder
+
+	err := s.db.
+		// Only return orders ready for pick up.
+		Where("order_status = ?", string(entity.OrderStatusReadyForPickup)).
+		// We want to optimize for minimizing waste.
+		Order("expires_at asc").
+		First(&shelfOrderRecord).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, exception.ErrNotFound
+	}
+	if err != nil {
+		return nil, errors.Wrap(exception.ErrDatabase, err.Error())
+	}
+
+	shelfOrder, err := mapper.RecordToShelfOrder(shelfOrderRecord)
+	if err != nil {
+		return nil, errors.Wrapf(
+			exception.ErrDataCorrupted, "failed to map record to shelf order %+v - err: %s", shelfOrderRecord, err.Error())
+	}
+
+	return shelfOrder, nil
 }

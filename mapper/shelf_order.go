@@ -55,7 +55,7 @@ func RecordToShelfOrder(record record.ShelfOrder) (*entity.ShelfOrder, error) {
 
 	err = shelfOrder.Validate()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "shelf order failed validation")
 	}
 
 	return &shelfOrder, nil

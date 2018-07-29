@@ -36,9 +36,20 @@ func (s *ShelfOrder) Validate() error {
 		errorMsgs = append(errorMsgs, msg)
 	}
 
-	// Combine error messages.
-	err := fmt.Errorf(strings.Join(errorMsgs, ", "))
-	return err
+	// If error msgs exist then we return a combination of them.
+	if len(errorMsgs) != 0 {
+		// Combine error messages if they exist.
+		err := fmt.Errorf(strings.Join(errorMsgs, ", "))
+		return err
+	}
+
+	return nil
+}
+
+// String returns a prettified string representation of an order.
+func (s *ShelfOrder) String() string {
+	shelfOrderString := fmt.Sprintf("ShelfType: %s, OrderStatus: %s", s.ShelfType, s.OrderStatus)
+	return shelfOrderString
 }
 
 // ShelfType is the type of shelf to hold the food.

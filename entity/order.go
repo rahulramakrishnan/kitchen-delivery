@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/kitchen-delivery/entity/exception"
@@ -49,6 +50,12 @@ func (o *Order) Validate() error {
 	}
 
 	return nil
+}
+
+// String returns a prettified string representation of an order.
+func (o *Order) String() string {
+	orderString := fmt.Sprintf("Name: %s, Temp: %s", o.Name, o.Temp)
+	return orderString
 }
 
 // GetShelfType returns shelf name based on order temp.

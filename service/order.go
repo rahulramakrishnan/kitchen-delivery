@@ -15,6 +15,8 @@ import (
 // OrderService is order serivce interface.
 type OrderService interface {
 	CreateOrder(order entity.Order) error
+	PlaceOrderOnShelf(order entity.Order) error
+	PickupOrder() (*entity.Order, error)
 }
 
 type orderService struct {
@@ -44,11 +46,17 @@ func NewOrderService(orderRepository repository.OrderRepository, shelfOrderRepos
 
 // Create stores an order in the orders table.
 func (o *orderService) CreateOrder(order entity.Order) error {
+	// Store an immutable record of incoming orders.
 	err := o.orderRepository.CreateOrder(order)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create order, order: %+v", order)
 	}
 
+	return nil
+}
+
+// PlaceOrderOnShelf places an order on the shelf.
+func (o *orderService) PlaceOrderOnShelf(order entity.Order) error {
 	// Check count of orders in "hot" w/ status of ready for pick up.
 	shelfType := order.GetShelfType()
 	numOfOrders, err := o.shelfOrderRepository.CountOrdersOnShelf(shelfType)
@@ -98,4 +106,29 @@ func (o *orderService) getTTL(order entity.Order) int {
 	expirationTime := float64(order.ShelfLife) / (1.0 + order.DecayRate)
 	ttl := int(math.Floor(expirationTime))
 	return ttl
+}
+
+func (o *orderService) PickupOrder() (*entity.Order, error) {
+	// Get order that is ready for pickup from shelf that
+	// has an expiration date that is the most soon.
+	// We do this to minimize waste.
+	shelfOrder, err := o.shelfOrderRepository.GetOpenOrder()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch open order")
+	}
+
+	// Update shelf order status to be "picked_up".
+	err = o.shelfOrderRepository.UpdateOrderStatus(*shelfOrder, entity.OrderStatusPickedUp)
+	if err != nil {
+		return nil, errors.Wrapf(
+			err, "failed to update status of shelf order %+v", shelfOrder)
+	}
+
+	// Fetch the corresponding order so the consumer (driver) has all the details.
+	order, err := o.orderRepository.GetOrder(shelfOrder.OrderUUID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get order")
+	}
+
+	return order, nil
 }

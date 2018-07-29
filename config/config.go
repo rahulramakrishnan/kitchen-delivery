@@ -21,13 +21,13 @@ func (a *AppConfig) LoadConfig() error {
 	// Load configuration file.
 	yamlFile, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		log.Printf("failed to read from yamlFile.Get | err: %+v", err)
+		log.Printf("failed to read from yamlFile.Get | err: %s", err)
 		return err
 	}
 
 	err = yaml.Unmarshal(yamlFile, a)
 	if err != nil {
-		log.Printf("failed to unmarshal | err: %v", err)
+		log.Printf("failed to unmarshal | err: %s", err)
 		return err
 	}
 
