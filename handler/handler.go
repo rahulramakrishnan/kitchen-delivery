@@ -15,9 +15,9 @@ type Handlers struct {
 }
 
 // NewHandlers returns new HTTP handlers.
-func NewHandlers(cfg config.AppConfig, services service.Services, orderQueue chan<- *entity.Order) (*Handlers, error) {
+func NewHandlers(cfg config.AppConfig, services service.Services, queues entity.Queues) (*Handlers, error) {
 	healthHandler := health.NewHandler(cfg)
-	orderHandler := order.NewHandler(cfg, services, orderQueue)
+	orderHandler := order.NewHandler(cfg, services, queues)
 
 	return &Handlers{
 		Health: healthHandler,

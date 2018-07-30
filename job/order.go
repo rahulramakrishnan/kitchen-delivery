@@ -8,7 +8,9 @@ import (
 	"github.com/kitchen-delivery/entity"
 	"github.com/kitchen-delivery/entity/exception"
 	"github.com/kitchen-delivery/service"
+
 	"github.com/pkg/errors"
+	guuid "github.com/satori/go.uuid"
 )
 
 // OrderJob is order job interface.
@@ -33,43 +35,55 @@ func NewOrderJob(cfg config.AppConfig, services service.Services, queues entity.
 }
 
 // HandleOrders pulls orders off of order queue and shelf queue.
-// TODO: Store job status in a table so we can track when what was run.
 func (o *orderJob) HandleIncomingOrders() {
-	// Spawn thread to handle incoming orders.
-	go o.handleIncomingOrders()
 	// Spawn thread to handle placing orders on the right shelves.
-	go o.handlePlacingOrdersOnShelves()
+	go o.checkForOrders()
 }
 
-func (o *orderJob) handleIncomingOrders() {
-	// Pull order of queue and spawn a go-routine to handle order.
-	for order := range o.queues.OrderQueue {
-		// TODO: Use a worker pool.
-		go o.handleOrder(*order)
-	}
-}
-
-func (o *orderJob) handlePlacingOrdersOnShelves() {
+func (o *orderJob) checkForOrders() {
 	// Pull order off of shelf queue and spawn a go-routine to retry placing order
 	// on the right shelf.
-	for order := range o.queues.ShelfQueue {
-		// TODO: Use a worker pool.
-		go o.handleOrder(*order)
+	for {
+		time.Sleep(200 * time.Millisecond)
+		go o.placeOrderOnShelf()
 	}
+}
+
+func (o *orderJob) placeOrderOnShelf() {
+	// Pull order off of shelf queue and spawn a go-routine to retry placing order
+	// on the right shelf.
+	orderQueue := o.queues.Order
+	orderUUIDObj, err := orderQueue.Conn.Do("RPOP", orderQueue.Name)
+	if err != nil {
+		log.Printf("failed to fetch order uuid from order queue - err: %s", err.Error())
+		return
+	}
+	if orderUUIDObj == nil {
+		return
+	}
+	orderUUIDStr := string(orderUUIDObj.([]uint8))
+	orderUUID, err := guuid.FromString(orderUUIDStr)
+	if err != nil {
+		log.Printf("order uuid got correupted - err: %s", err.Error())
+		return
+	}
+
+	log.Printf("orderUUID: %s", orderUUID)
+
+	go o.handleOrder(orderUUID)
 }
 
 // handleOrder pulls an order off of an order queue and stores it.
-func (o *orderJob) handleOrder(order entity.Order) {
-	log.Printf("worker | pulled order off of queue - order: %s", order.String())
-
-	err := o.services.Order.PlaceOrderOnShelf(order)
+func (o *orderJob) handleOrder(orderUUID guuid.UUID) {
+	order, err := o.services.Order.GetOrder(orderUUID)
 	if err != nil {
-		log.Printf("worker | failed to place order on shelf so putting it on the shelf queue- err: %s", err)
-		// Just because we can't place an order on a shelf right now
-		// doesn't mean we should fail the request and throw the food away.
-		// We can keep the order on the stove and the cook can pull it off and put it on
-		// a shelf when there is space.
-		o.queues.ShelfQueue <- &order
+		log.Printf("worker | failed to fetch order - orderUUID: %s", orderUUID.String())
+		return
+	}
+
+	err = o.services.Order.PlaceOrderOnShelf(*order)
+	if err != nil {
+		log.Printf("worker | kitchen is over capacity - dropping order: %s", order.String())
 		return
 	}
 

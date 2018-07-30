@@ -55,11 +55,8 @@ func main() {
 	////////////////////////////////////////
 	// Local Queue Initialization
 	////////////////////////////////////////
-	orderQueue := make(chan *entity.Order)      // TODO: Replace w/ Redis
-	shelfOrderQueue := make(chan *entity.Order) // TODO: Replace w/ Redis
 	queues := entity.Queues{
-		OrderQueue: orderQueue,
-		ShelfQueue: shelfOrderQueue,
+		Order: entity.Queue{Name: "Order", Conn: redisConn},
 	}
 
 	////////////////////////////////////////
@@ -77,7 +74,7 @@ func main() {
 	////////////////////////////////////////
 	// Handler Initialization
 	////////////////////////////////////////
-	handlers, err := handler.NewHandlers(cfg, services, orderQueue)
+	handlers, err := handler.NewHandlers(cfg, services, queues)
 	if err != nil {
 		log.Fatalf("Failed to initialize handlers - err: %+v", err)
 	}

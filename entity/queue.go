@@ -1,10 +1,17 @@
 package entity
 
-// Queues holds local queues.
+import "github.com/gomodule/redigo/redis"
+
+// Queues holds Redis queues.
 type Queues struct {
 	// Kitchen categorize and store incoming orders.
-	OrderQueue chan *Order
-	// Kitchen pulls off finished orders and places them on shelves
-	// when there is space.
-	ShelfQueue chan *Order
+	Order Queue
+	// We can extend this to include more queues
+	// as our Kitchen Delivery system expands.
+}
+
+// Queue holds queue name and redis connection.
+type Queue struct {
+	Name string
+	Conn redis.Conn
 }

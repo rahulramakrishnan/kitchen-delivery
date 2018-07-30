@@ -16,6 +16,7 @@ import (
 type OrderService interface {
 	CreateOrder(order entity.Order) error
 	PlaceOrderOnShelf(order entity.Order) error
+	GetOrder(orderUUID guuid.UUID) (*entity.Order, error)
 	PickupOrder() (*entity.Order, error)
 	GetExpiredOrdersOnShelf() ([]*entity.ShelfOrder, error)
 	MarkOrderAsWasted(entity.ShelfOrder) error
@@ -125,6 +126,16 @@ func (o *orderService) getTTL(order entity.Order) int {
 	expirationTime := float64(order.ShelfLife) / (1.0 + order.DecayRate)
 	ttl := int(math.Floor(expirationTime))
 	return ttl
+}
+
+func (o *orderService) GetOrder(orderUUID guuid.UUID) (*entity.Order, error) {
+	// Fetch the corresponding order so the consumer (driver) has all the details.
+	order, err := o.orderRepository.GetOrder(orderUUID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get order")
+	}
+
+	return order, nil
 }
 
 func (o *orderService) PickupOrder() (*entity.Order, error) {

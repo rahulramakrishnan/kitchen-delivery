@@ -23,15 +23,15 @@ type Handler interface {
 type orderHandler struct {
 	cfg      config.AppConfig
 	services service.Services
-	queue    chan<- *entity.Order // we only send to this channel
+	queues   entity.Queues
 }
 
 // NewHandler creates a new HTTP order handler instance.
-func NewHandler(appConfig config.AppConfig, services service.Services, queue chan<- *entity.Order) Handler {
+func NewHandler(appConfig config.AppConfig, services service.Services, queues entity.Queues) Handler {
 	return &orderHandler{
 		cfg:      appConfig,
 		services: services,
-		queue:    queue,
+		queues:   queues,
 	}
 }
 
@@ -107,14 +107,22 @@ func (o *orderHandler) createOrder(w http.ResponseWriter, r *http.Request) {
 	// concurrently. This is increases the throughput that our API can handle.
 	// We purposesfully do not close this channel because we want to keep it open
 	// for workers to continue pulling indefinitely.
-	o.queue <- order
+	orderQueue := o.queues.Order
+	numOfOrders, err := orderQueue.Conn.Do("LPUSH", orderQueue.Name, order.UUID.String())
+	if err != nil {
+		msg := fmt.Sprintf("failed to place order on queue - err: %s", err)
+		log.Println(msg)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte(msg))
+		return
+	}
+
+	log.Printf("num of orders on queue %d", numOfOrders)
 
 	// Send back order uuid to client on success.
 	// This will support client-polling and allow for idempotency.
-	orderUUID := order.UUID
-
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(orderUUID.String()))
+	w.Write([]byte(order.UUID.String()))
 }
 
 // pickupOrder picks up an order.
