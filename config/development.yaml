@@ -3,3 +3,5 @@ databases:
   mysql:
     username: root
     database: kitchen
+pickup:
+  mean: 3.0

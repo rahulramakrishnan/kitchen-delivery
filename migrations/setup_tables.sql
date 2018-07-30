@@ -5,7 +5,7 @@ CREATE TABLE `orders` (
   `shelf_life`                      INTEGER            NOT NULL,
   `decay_rate`                      FLOAT              NOT NULL,
   `created_at`                      DATETIME           NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`uuid`),
+  PRIMARY KEY (`uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE `orders` ADD INDEX (`temp`);

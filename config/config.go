@@ -12,6 +12,7 @@ import (
 type AppConfig struct {
 	ServiceName string    `yaml:"service_name"`
 	Databases   Databases `yaml:"databases"`
+	Pickup      Pickup    `yaml:"pickup"`
 }
 
 // LoadConfig loads configuration from yaml files.
@@ -51,4 +52,9 @@ func (m *MySQL) GetConnectionString() string {
 	connectionStr := fmt.Sprintf("%s:@tcp(localhost:3306)/%s?charset=utf8&parseTime=True&loc=Local", m.Username, m.Database)
 
 	return connectionStr
+}
+
+// Pickup holds pickup information.
+type Pickup struct {
+	Mean float64 `yaml:"mean"` // mean for poisson distribution
 }

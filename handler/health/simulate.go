@@ -17,6 +17,7 @@ import (
 
 // Simulate launches a Kitchen Delivery system simulation.
 func (h *healthHandler) Simulate(w http.ResponseWriter, r *http.Request) {
+	log.Printf("\n\n-------- Simulation Starting ---------\n\n")
 	// Load order data from input json file, and make requests to
 	// kitchen-delivery's order endpoint.
 	jsonFile, err := os.Open("data/input.json")
@@ -111,17 +112,17 @@ func (h *healthHandler) submitOrderRequest(order endpoint.OrderJSON) error {
 
 // sendDriversToPickupOrders sends drivers to pickup orders.
 func (h *healthHandler) sendDriversToPickupOrders() {
-	// TODO: Send drivers until there are no more orders.
-	for i := 0; i < 100; i++ {
-		// TODO: Load mean into config.
-		p := stats.Poisson(3)
+	for {
+		// Send drivers using a Poisson distribution.
+		p := stats.Poisson(h.cfg.Pickup.Mean)
 		numOfSeconds := p.Random()
 		time.Sleep(time.Duration(numOfSeconds) * time.Second)
 
-		err := h.sendDriverToPickupOrder(i)
+		err := h.sendDriverToPickupOrder()
 		if err != nil {
 			// No more orders to pick up.
 			if err == exception.ErrNotFound {
+				log.Printf("\n\n-------- Simulation Over ---------\n\n")
 				break
 			}
 			// We fail open here as we don't want an error in
@@ -129,12 +130,11 @@ func (h *healthHandler) sendDriversToPickupOrders() {
 			msg := fmt.Sprintf("driver failed to pickup an order: %s", err)
 			log.Println(msg)
 		}
-
 	}
 }
 
 // submitOrderRequest submits an order creation HTTP request.
-func (h *healthHandler) sendDriverToPickupOrder(driverNum int) error {
+func (h *healthHandler) sendDriverToPickupOrder() error {
 	resp, err := http.Get("http://localhost:8080/order")
 	if err != nil {
 		return err

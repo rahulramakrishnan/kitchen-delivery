@@ -125,14 +125,12 @@ func (o *orderHandler) pickupOrder(w http.ResponseWriter, r *http.Request) {
 		case exception.ErrNotFound:
 			msg := fmt.Sprintf("no more orders - err: %s", err)
 			log.Println(msg)
-
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte(msg))
 			return
 		default:
 			msg := fmt.Sprintf("failed to pickup order - err: %s", err)
 			log.Println(msg)
-
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(msg))
 			return
