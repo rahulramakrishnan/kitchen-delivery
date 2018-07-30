@@ -142,6 +142,8 @@ func (o *orderHandler) pickupOrder(w http.ResponseWriter, r *http.Request) {
 	// Stringify the contents of the order.
 	orderContents := order.String()
 
+	log.Printf("driver picked up order successfully - %s", orderContents)
+
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(orderContents))
 }

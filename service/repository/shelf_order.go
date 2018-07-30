@@ -10,7 +10,6 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/go-sql-driver/mysql"
-	"github.com/gomodule/redigo/redis"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
@@ -25,15 +24,13 @@ type ShelfOrderRepository interface {
 }
 
 type shelfRepository struct {
-	db    *gorm.DB
-	redis redis.Conn
+	db *gorm.DB
 }
 
 // NewShelfOrderRepository is a new order repository.
-func NewShelfOrderRepository(db *gorm.DB, redisClient redis.Conn) ShelfOrderRepository {
+func NewShelfOrderRepository(db *gorm.DB) ShelfOrderRepository {
 	return &shelfRepository{
-		db:    db,
-		redis: redisClient,
+		db: db,
 	}
 }
 

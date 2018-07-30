@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"github.com/gomodule/redigo/redis"
 	"github.com/jinzhu/gorm"
 )
 
@@ -12,9 +11,9 @@ type Repositories struct {
 }
 
 // InitializeRepositories initializes repositories.
-func InitializeRepositories(db *gorm.DB, redisConn redis.Conn) Repositories {
+func InitializeRepositories(db *gorm.DB) Repositories {
 	orderRepository := NewOrderRepository(db)
-	shelfOrderRepository := NewShelfOrderRepository(db, redisConn)
+	shelfOrderRepository := NewShelfOrderRepository(db)
 
 	repositories := Repositories{
 		Order:      orderRepository,

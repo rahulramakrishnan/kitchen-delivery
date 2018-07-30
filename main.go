@@ -38,7 +38,7 @@ func main() {
 	defer db.Close()
 
 	// Open connection to Redis instance.
-	// TODO: Use this as a first in first out queue.
+	// Use this as a first in first out queue.
 	// Instead of the channel.
 	redisConn, err := redis.Dial("tcp", ":6379")
 	if err != nil {
@@ -49,14 +49,14 @@ func main() {
 	////////////////////////////////////////
 	// Service Initialization
 	////////////////////////////////////////
-	repositories := repository.InitializeRepositories(db, redisConn)
+	repositories := repository.InitializeRepositories(db)
 	services := service.InitializeServices(cfg, repositories)
 
 	////////////////////////////////////////
 	// Local Queue Initialization
 	////////////////////////////////////////
-	orderQueue := make(chan *entity.Order)
-	shelfOrderQueue := make(chan *entity.Order)
+	orderQueue := make(chan *entity.Order)      // TODO: Replace w/ Redis
+	shelfOrderQueue := make(chan *entity.Order) // TODO: Replace w/ Redis
 	queues := entity.Queues{
 		OrderQueue: orderQueue,
 		ShelfQueue: shelfOrderQueue,

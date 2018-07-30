@@ -152,13 +152,10 @@ func (h *healthHandler) sendDriverToPickupOrder(driverNum int) error {
 	// of the response as the error.
 	switch resp.StatusCode {
 	case http.StatusOK:
-		log.Printf("driver %d picked up order successfully", driverNum)
 		return nil
 	case http.StatusNotFound:
-		log.Printf("no more orders available")
 		return exception.ErrNotFound
 	default:
-		log.Printf("driver %d failed to pick up order", driverNum)
 		return fmt.Errorf("%s", content)
 	}
 }
