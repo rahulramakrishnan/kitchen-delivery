@@ -93,6 +93,7 @@ func (o *orderJob) RemoveExpiredOrders() {
 				log.Printf("Failed to mark order as waste %s - err: %s", shelfOrder.String(), err.Error())
 				continue
 			}
+
 		}
 	}
 }
@@ -116,5 +117,6 @@ func (o *orderJob) removeExpiredOrder(shelfOrder entity.ShelfOrder) error {
 		return err
 	}
 
+	log.Printf("Marked order on shelf wasted %s", shelfOrder.String())
 	return nil
 }

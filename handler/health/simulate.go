@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/kitchen-delivery/entity/endpoint"
+	"github.com/kitchen-delivery/entity/exception"
 	stats "github.com/r0fls/gostats"
 )
 
@@ -119,18 +120,21 @@ func (h *healthHandler) sendDriversToPickupOrders() {
 
 		err := h.sendDriverToPickupOrder(i)
 		if err != nil {
+			// No more orders to pick up.
+			if err == exception.ErrNotFound {
+				break
+			}
 			// We fail open here as we don't want an error in
 			// the creation of one order to stop the creation of subsequent ones.
 			msg := fmt.Sprintf("driver failed to pickup an order: %s", err)
 			log.Println(msg)
 		}
+
 	}
 }
 
 // submitOrderRequest submits an order creation HTTP request.
 func (h *healthHandler) sendDriverToPickupOrder(driverNum int) error {
-	log.Printf("sending driver %d to pick up order", driverNum)
-
 	resp, err := http.Get("http://localhost:8080/order")
 	if err != nil {
 		return err
@@ -148,13 +152,13 @@ func (h *healthHandler) sendDriverToPickupOrder(driverNum int) error {
 	// of the response as the error.
 	switch resp.StatusCode {
 	case http.StatusOK:
-		log.Printf("successfull picked up order %s", content)
+		log.Printf("driver %d picked up order successfully", driverNum)
 		return nil
 	case http.StatusNotFound:
-		log.Println("no more orders to pick up")
-		return fmt.Errorf("%s", content)
+		log.Printf("no more orders available")
+		return exception.ErrNotFound
 	default:
-		log.Println("failed to pick up order")
+		log.Printf("driver %d failed to pick up order", driverNum)
 		return fmt.Errorf("%s", content)
 	}
 }
