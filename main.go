@@ -21,7 +21,7 @@ func main() {
 
 	// Load application configuration.
 	cfg := config.AppConfig{}
-	err := cfg.LoadConfig()
+	err := cfg.LoadConfig("config/development.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load configuration from yaml files - err: %+v", err)
 	}

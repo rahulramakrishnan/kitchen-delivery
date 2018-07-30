@@ -5,3 +5,10 @@ databases:
     database: kitchen
 pickup:
   mean: 3.0
+worker_pool:
+  max_workers: 5
+shelf_space:
+  hot: 15
+  cold: 15
+  frozen: 15
+  overflow: 20

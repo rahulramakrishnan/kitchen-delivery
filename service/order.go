@@ -1,9 +1,9 @@
 package service
 
 import (
-	"math"
 	"time"
 
+	"github.com/kitchen-delivery/config"
 	"github.com/kitchen-delivery/entity"
 	"github.com/kitchen-delivery/entity/exception"
 	"github.com/kitchen-delivery/service/repository"
@@ -23,6 +23,7 @@ type OrderService interface {
 }
 
 type orderService struct {
+	cfg                  config.AppConfig
 	orderRepository      repository.OrderRepository
 	shelfOrderRepository repository.ShelfOrderRepository
 	shelfSpace           map[entity.ShelfType]int
@@ -30,17 +31,17 @@ type orderService struct {
 
 // NewOrderService returns a new user service.
 // switch to userRepositories
-func NewOrderService(orderRepository repository.OrderRepository, shelfOrderRepository repository.ShelfOrderRepository) OrderService {
-	// TODO: move to configuration.
-	// Holds how many items each type of shelf can hold
-	// at any given time.
+func NewOrderService(cfg config.AppConfig, orderRepository repository.OrderRepository, shelfOrderRepository repository.ShelfOrderRepository) OrderService {
+	// Holds how many items each type of shelf can hold at any given time.
 	shelfSpace := map[entity.ShelfType]int{
-		entity.HotShelf:      15,
-		entity.ColdShelf:     15,
-		entity.FrozenShelf:   15,
-		entity.OverflowShelf: 20,
+		entity.HotShelf:      cfg.ShelfSpace.Hot,
+		entity.ColdShelf:     cfg.ShelfSpace.Cold,
+		entity.FrozenShelf:   cfg.ShelfSpace.Frozen,
+		entity.OverflowShelf: cfg.ShelfSpace.Overflow,
 	}
+
 	return &orderService{
+		cfg:                  cfg,
 		orderRepository:      orderRepository,
 		shelfOrderRepository: shelfOrderRepository,
 		shelfSpace:           shelfSpace,
@@ -67,11 +68,18 @@ func (o *orderService) PlaceOrderOnShelf(order entity.Order) error {
 		return errors.Wrapf(err, "failed to create order %+v", order)
 	}
 
-	// We try to place the order on the right shelf but we first
-	// have to check the current num of items on both the corresponding shelf
-	// and the overflow shelf.
-	isCorrespondingShelfFull := numOfOrders > o.shelfSpace[correspondingShelfType]
-	isOverflowShelfFull := numOfOrders > o.shelfSpace[entity.OverflowShelf]
+	// Determine if the corresponding shelf has space.
+	var isOverflowShelfFull bool
+	isCorrespondingShelfFull := numOfOrders >= o.shelfSpace[correspondingShelfType]
+	if isCorrespondingShelfFull {
+		// If the corresponding shelf is full we count orders on overflow shelf.
+		numOfOrders, err = o.shelfOrderRepository.CountOrdersOnShelf(entity.OverflowShelf)
+		if err != nil {
+			return errors.Wrapf(err, "failed to count orders on shelf %+v", order)
+		}
+
+		isOverflowShelfFull = numOfOrders >= o.shelfSpace[entity.OverflowShelf]
+	}
 
 	// First, if both the corresponding shelf and the overflow shelf are full
 	// we throw a retriable service full shelf exception so a caller can handle it explictly.
@@ -81,6 +89,8 @@ func (o *orderService) PlaceOrderOnShelf(order entity.Order) error {
 			exception.ErrFullShelf, "all shelves are filled, please retry again later")
 	}
 
+	// Now we know that either the corresponding shelf has
+	// space or the overflow shelf has space.
 	var shelfType entity.ShelfType
 
 	// Second, we check if we can place the order on the corresponding shelf.
@@ -95,7 +105,7 @@ func (o *orderService) PlaceOrderOnShelf(order entity.Order) error {
 	//    b. Form a shelf order w/ version 0
 	//    c. Place shelf order on a queue that the kitchen pulls off of.
 
-	ttl := o.getTTL(order)
+	ttl := order.GetTTL()
 	now := time.Now()
 	expirationDate := now.Add(time.Second * time.Duration(ttl))
 
@@ -114,18 +124,6 @@ func (o *orderService) PlaceOrderOnShelf(order entity.Order) error {
 	}
 
 	return nil
-}
-
-func (o *orderService) getTTL(order entity.Order) int {
-	// Calculate time to live in seconds based on formula.
-	// Remember an order is waste after the "value" becomes zero.
-	// This leads the formula to be reduced to:
-	// => orderAge = shelfLife / (1 + decayRate)
-	// We're given shelfLife and decayRate so we can solve for
-	// how old an order can get before we consider it as waste.
-	expirationTime := float64(order.ShelfLife) / (1.0 + order.DecayRate)
-	ttl := int(math.Floor(expirationTime))
-	return ttl
 }
 
 func (o *orderService) GetOrder(orderUUID guuid.UUID) (*entity.Order, error) {

@@ -10,14 +10,22 @@ import (
 
 // AppConfig holds the application configuration.
 type AppConfig struct {
-	ServiceName string    `yaml:"service_name"`
-	Databases   Databases `yaml:"databases"`
-	Pickup      Pickup    `yaml:"pickup"`
+	ServiceName string     `yaml:"service_name"`
+	Databases   Databases  `yaml:"databases"`
+	Pickup      Pickup     `yaml:"pickup"`
+	WorkerPool  WorkerPool `yaml:"worker_pool"`
+	ShelfSpace  ShelfSpace `yaml:"shelf_space"`
 }
 
 // LoadConfig loads configuration from yaml files.
-func (a *AppConfig) LoadConfig() error {
-	configFile := "config/development.yaml"
+func (a *AppConfig) LoadConfig(filePath string) error {
+	var configFile string
+
+	if filePath == "" {
+		configFile = "config/development.yaml"
+	} else {
+		configFile = filePath
+	}
 
 	// Load configuration file.
 	yamlFile, err := ioutil.ReadFile(configFile)
@@ -57,4 +65,17 @@ func (m *MySQL) GetConnectionString() string {
 // Pickup holds pickup information.
 type Pickup struct {
 	Mean float64 `yaml:"mean"` // mean for poisson distribution
+}
+
+// WorkerPool holds max worker count.
+type WorkerPool struct {
+	MaxWorkers int `yaml:"max_workers"` // num of max workers.
+}
+
+// ShelfSpace holds capacity of each type of shelf.
+type ShelfSpace struct {
+	Hot      int `yaml:"hot"`
+	Cold     int `yaml:"cold"`
+	Frozen   int `yaml:"frozen"`
+	Overflow int `yaml:"overflow"`
 }

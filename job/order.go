@@ -36,45 +36,47 @@ func NewOrderJob(cfg config.AppConfig, services service.Services, queues entity.
 
 // HandleOrders pulls orders off of order queue and shelf queue.
 func (o *orderJob) HandleIncomingOrders() {
-	// Spawn thread to handle placing orders on the right shelves.
-	go o.checkForOrders()
-}
-
-func (o *orderJob) checkForOrders() {
 	// Pull order off of shelf queue and spawn a go-routine to retry placing order
 	// on the right shelf.
-	for {
-		time.Sleep(200 * time.Millisecond)
-		go o.placeOrderOnShelf()
+	for i := 0; i < o.cfg.WorkerPool.MaxWorkers; i++ {
+		go o.handleIncomingOrder()
 	}
 }
 
-func (o *orderJob) placeOrderOnShelf() {
+func (o *orderJob) handleIncomingOrder() {
 	// Pull order off of shelf queue and spawn a go-routine to retry placing order
 	// on the right shelf.
 	orderQueue := o.queues.Order
-	orderUUIDObj, err := orderQueue.Conn.Do("RPOP", orderQueue.Name)
-	if err != nil {
-		log.Printf("failed to fetch order uuid from order queue - err: %s", err.Error())
-		return
-	}
-	if orderUUIDObj == nil {
-		return
-	}
-	orderUUIDStr := string(orderUUIDObj.([]uint8))
-	orderUUID, err := guuid.FromString(orderUUIDStr)
-	if err != nil {
-		log.Printf("order uuid got correupted - err: %s", err.Error())
-		return
-	}
 
-	log.Printf("orderUUID: %s", orderUUID)
+	for {
+		// Sleep for 1s before polling Redis queue.
+		time.Sleep(1)
 
-	go o.handleOrder(orderUUID)
+		orderUUIDObj, err := orderQueue.Conn.Do("RPOP", orderQueue.Name)
+		if err != nil {
+			log.Printf("failed to fetch order uuid from order queue - err: %+v", err)
+			continue
+		}
+		if orderUUIDObj == nil {
+			// Nothing in the queue to pull and work on.
+			continue
+		}
+
+		orderUUIDStr := string(orderUUIDObj.([]uint8))
+		orderUUID, err := guuid.FromString(orderUUIDStr)
+		if err != nil {
+			log.Printf("order uuid got correupted - err: %s", err.Error())
+			continue
+		}
+
+		log.Printf("pulled orderUUID %s from order queue", orderUUID)
+
+		o.placeOrderOnShelf(orderUUID)
+	}
 }
 
-// handleOrder pulls an order off of an order queue and stores it.
-func (o *orderJob) handleOrder(orderUUID guuid.UUID) {
+// placeOrderOnShelf pulls an order off of an order queue and stores it.
+func (o *orderJob) placeOrderOnShelf(orderUUID guuid.UUID) {
 	order, err := o.services.Order.GetOrder(orderUUID)
 	if err != nil {
 		log.Printf("worker | failed to fetch order - orderUUID: %s", orderUUID.String())
@@ -83,7 +85,12 @@ func (o *orderJob) handleOrder(orderUUID guuid.UUID) {
 
 	err = o.services.Order.PlaceOrderOnShelf(*order)
 	if err != nil {
-		log.Printf("worker | kitchen is over capacity - dropping order: %s", order.String())
+		if errors.Cause(err) == exception.ErrFullShelf {
+			log.Printf("worker | kitchen is over capacity - dropping order: %s", order.String())
+			return
+		}
+
+		log.Printf("worker | failed to place order on shelf, err: %s", err.Error())
 		return
 	}
 
