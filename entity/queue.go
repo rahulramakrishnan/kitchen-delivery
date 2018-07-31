@@ -13,5 +13,5 @@ type Queues struct {
 // Queue holds queue name and redis connection.
 type Queue struct {
 	Name string
-	Conn redis.Conn
+	Pool *redis.Pool
 }

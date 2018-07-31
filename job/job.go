@@ -12,7 +12,7 @@ type Jobs struct {
 }
 
 // InitializeJobs creates a new jobs instance.
-func InitializeJobs(cfg config.AppConfig, services service.Services, queues entity.Queues) Jobs {
+func InitializeJobs(cfg config.AppConfig, services service.Services, queues *entity.Queues) Jobs {
 	orderJob := NewOrderJob(cfg, services, queues)
 
 	return Jobs{

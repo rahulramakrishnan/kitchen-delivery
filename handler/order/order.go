@@ -23,11 +23,11 @@ type Handler interface {
 type orderHandler struct {
 	cfg      config.AppConfig
 	services service.Services
-	queues   entity.Queues
+	queues   *entity.Queues
 }
 
 // NewHandler creates a new HTTP order handler instance.
-func NewHandler(appConfig config.AppConfig, services service.Services, queues entity.Queues) Handler {
+func NewHandler(appConfig config.AppConfig, services service.Services, queues *entity.Queues) Handler {
 	return &orderHandler{
 		cfg:      appConfig,
 		services: services,
@@ -107,17 +107,29 @@ func (o *orderHandler) createOrder(w http.ResponseWriter, r *http.Request) {
 	// concurrently. This is increases the throughput that our API can handle.
 	// We purposesfully do not close this channel because we want to keep it open
 	// for workers to continue pulling indefinitely.
-	orderQueue := o.queues.Order
-	numOfOrders, err := orderQueue.Conn.Do("LPUSH", orderQueue.Name, order.UUID.String())
-	if err != nil {
+	var requestErr error
+	redisConn := o.queues.Order.Pool.Get() // Fetch redis connection from redis pool.
+	switch redisConn.Err() {
+	case nil:
+		numOfOrders, err := redisConn.Do("LPUSH", o.queues.Order.Name, order.UUID.String())
+		redisConn.Close()
+		if err != nil {
+			requestErr = err
+		} else {
+			log.Printf("num of orders on queue %d", numOfOrders)
+		}
+	default:
+		redisConn.Close()
+		requestErr = redisConn.Err()
+	}
+
+	if requestErr != nil {
 		msg := fmt.Sprintf("failed to place order on queue - err: %s", err)
 		log.Println(msg)
 		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write([]byte(msg))
 		return
 	}
-
-	log.Printf("num of orders on queue %d", numOfOrders)
 
 	// Send back order uuid to client on success.
 	// This will support client-polling and allow for idempotency.

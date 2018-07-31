@@ -22,11 +22,11 @@ type OrderJob interface {
 type orderJob struct {
 	cfg      config.AppConfig
 	services service.Services
-	queues   entity.Queues
+	queues   *entity.Queues
 }
 
 // NewOrderJob returns a new order job.
-func NewOrderJob(cfg config.AppConfig, services service.Services, queues entity.Queues) OrderJob {
+func NewOrderJob(cfg config.AppConfig, services service.Services, queues *entity.Queues) OrderJob {
 	return &orderJob{
 		cfg:      cfg,
 		services: services,
@@ -39,39 +39,48 @@ func (o *orderJob) HandleIncomingOrders() {
 	// Pull order off of shelf queue and spawn a go-routine to retry placing order
 	// on the right shelf.
 	for i := 0; i < o.cfg.WorkerPool.MaxWorkers; i++ {
-		go o.handleIncomingOrder()
+		go o.handleIncomingOrder(i)
 	}
 }
 
-func (o *orderJob) handleIncomingOrder() {
-	// Pull order off of shelf queue and spawn a go-routine to retry placing order
-	// on the right shelf.
-	orderQueue := o.queues.Order
-
+func (o *orderJob) handleIncomingOrder(workerNum int) {
+	// Poll redis queue until we stop service.
 	for {
 		// Sleep for 1s before polling Redis queue.
 		time.Sleep(1)
 
-		orderUUIDObj, err := orderQueue.Conn.Do("RPOP", orderQueue.Name)
-		if err != nil {
-			log.Printf("failed to fetch order uuid from order queue - err: %+v", err)
-			continue
-		}
-		if orderUUIDObj == nil {
-			// Nothing in the queue to pull and work on.
-			continue
-		}
+		// Fetch redis connection from redis pool.
+		redisConn := o.queues.Order.Pool.Get() // Fetch redis connection from redis pool.
+		switch redisConn.Err() {
+		case nil:
+			orderUUIDObj, err := redisConn.Do("RPOP", o.queues.Order.Name)
+			redisConn.Close()
+			if err != nil {
+				log.Printf("worker %d failed to fetch order uuid from order queue - err: %+v", workerNum, err)
+				continue
+			}
+			if orderUUIDObj == nil {
+				// Nothing in the queue to pull and work on.
+				continue
+			}
 
-		orderUUIDStr := string(orderUUIDObj.([]uint8))
-		orderUUID, err := guuid.FromString(orderUUIDStr)
-		if err != nil {
-			log.Printf("order uuid got correupted - err: %s", err.Error())
-			continue
+			orderUUIDStr := string(orderUUIDObj.([]uint8))
+			orderUUID, err := guuid.FromString(orderUUIDStr)
+			if err != nil {
+				log.Printf("worker %d order uuid got corrupted - err: %s", workerNum, err.Error())
+				continue
+			}
+
+			log.Printf("worker %d pulled orderUUID %s from order queue", workerNum, orderUUID.String())
+
+			o.placeOrderOnShelf(orderUUID)
+		default:
+			redisConn.Close()
+			err := redisConn.Err()
+			if err != nil {
+				log.Printf("worker %d failed to connect to redis queue, err: %+v", workerNum, err)
+			}
 		}
-
-		log.Printf("pulled orderUUID %s from order queue", orderUUID)
-
-		o.placeOrderOnShelf(orderUUID)
 	}
 }
 

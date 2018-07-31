@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/kitchen-delivery/config"
@@ -39,12 +40,21 @@ func main() {
 
 	// Open connection to Redis instance.
 	// Use this as a first in first out queue.
-	// Instead of the channel.
-	redisConn, err := redis.Dial("tcp", ":6379")
-	if err != nil {
-		log.Fatalf("Failed to connect to redis instance %+v", err)
+	// TODO: Move this to a configuration.
+	redisPool := &redis.Pool{
+		MaxIdle:     5,
+		MaxActive:   5,
+		IdleTimeout: 20 * time.Second,
+		Wait:        true,
+		Dial: func() (redis.Conn, error) {
+			redisConn, err := redis.Dial("tcp", ":6379")
+			if err != nil {
+				return nil, err
+			}
+
+			return redisConn, nil
+		},
 	}
-	defer redisConn.Close()
 
 	////////////////////////////////////////
 	// Service Initialization
@@ -55,8 +65,13 @@ func main() {
 	////////////////////////////////////////
 	// Local Queue Initialization
 	////////////////////////////////////////
-	queues := entity.Queues{
-		Order: entity.Queue{Name: "Order", Conn: redisConn},
+	queues := &entity.Queues{
+		// We pass redis pool by reference
+		// as it contains mutex lock.
+		Order: entity.Queue{
+			Name: "Order",
+			Pool: redisPool,
+		},
 	}
 
 	////////////////////////////////////////
