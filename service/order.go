@@ -17,6 +17,7 @@ type OrderService interface {
 	CreateOrder(order entity.Order) error
 	PlaceOrderOnShelf(order entity.Order) error
 	GetOrder(orderUUID guuid.UUID) (*entity.Order, error)
+	GetAllOrdersOnShelves() (map[entity.ShelfType][]*entity.ShelfOrder, error)
 	PickupOrder() (*entity.Order, error)
 	GetExpiredOrdersOnShelf() ([]*entity.ShelfOrder, error)
 	MarkOrderAsWasted(entity.ShelfOrder) error
@@ -105,7 +106,7 @@ func (o *orderService) PlaceOrderOnShelf(order entity.Order) error {
 	//    b. Form a shelf order w/ version 0
 	//    c. Place shelf order on a queue that the kitchen pulls off of.
 
-	ttl := order.GetTTL()
+	ttl := order.GetTTL(shelfType == entity.OverflowShelf)
 	now := time.Now()
 	expirationDate := now.Add(time.Second * time.Duration(ttl))
 
@@ -134,6 +135,21 @@ func (o *orderService) GetOrder(orderUUID guuid.UUID) (*entity.Order, error) {
 	}
 
 	return order, nil
+}
+
+func (o *orderService) GetAllOrdersOnShelves() (map[entity.ShelfType][]*entity.ShelfOrder, error) {
+	allShelfOrders := make(map[entity.ShelfType][]*entity.ShelfOrder)
+
+	for shelfType := range entity.AllShelfTypes {
+		shelfOrders, err := o.shelfOrderRepository.GetOrdersOnShelf(shelfType)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get all orders on shelves")
+		}
+
+		allShelfOrders[shelfType] = shelfOrders
+	}
+
+	return allShelfOrders, nil
 }
 
 func (o *orderService) PickupOrder() (*entity.Order, error) {

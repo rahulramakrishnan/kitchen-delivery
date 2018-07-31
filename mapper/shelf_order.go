@@ -33,11 +33,21 @@ func ShelfOrderToRecord(shelfOrder entity.ShelfOrder) record.ShelfOrder {
 // RecordsToShelfOrders maps shelf order records to shelf order entities.
 func RecordsToShelfOrders(records []*record.ShelfOrder) ([]*entity.ShelfOrder, error) {
 	var shelfOrders []*entity.ShelfOrder
+	emptyOrderRecord := record.Order{}
 
 	for _, record := range records {
 		shelfOrder, err := RecordToShelfOrder(*record)
 		if err != nil {
 			return nil, err
+		}
+		if record.Order != emptyOrderRecord {
+			// If order is not an empty order.
+			order, err := RecordToOrder(record.Order)
+			if err != nil {
+				return nil, err
+			}
+
+			shelfOrder.Order = *order
 		}
 
 		shelfOrders = append(shelfOrders, shelfOrder)

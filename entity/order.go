@@ -74,13 +74,20 @@ func (o *Order) GetShelfType() ShelfType {
 }
 
 // GetTTL returns the ttl for the order.
-func (o *Order) GetTTL() int {
+func (o *Order) GetTTL(isOverflow bool) int {
 	// Calculate time to live in seconds based on formula.
 	// Remember an order is waste after the "value" becomes zero.
 	// This leads the formula to be reduced to:
 	// => orderAge = shelfLife / (1 + decayRate)
 	// We're given shelfLife and decayRate so we can solve for
 	// how old an order can get before we consider it as waste.
+	decayRate := o.DecayRate
+	if isOverflow {
+		// We double decay rate if it's going to the overflow shelf.
+		// We only know this at run-time which is why we pass it in.
+		decayRate = decayRate * 2
+	}
+
 	expirationTime := float64(o.ShelfLife) / (1.0 + o.DecayRate)
 	ttl := int(math.Floor(expirationTime))
 	return ttl

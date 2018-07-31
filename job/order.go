@@ -7,6 +7,7 @@ import (
 	"github.com/kitchen-delivery/config"
 	"github.com/kitchen-delivery/entity"
 	"github.com/kitchen-delivery/entity/exception"
+	"github.com/kitchen-delivery/lib"
 	"github.com/kitchen-delivery/service"
 
 	"github.com/pkg/errors"
@@ -104,6 +105,11 @@ func (o *orderJob) placeOrderOnShelf(orderUUID guuid.UUID) {
 	}
 
 	log.Printf("worker | placed order on correct shelf - %s", order.String())
+
+	// Fetch and print the contents of the shelves as a best effort.
+	allShelfOrders, err := o.services.Order.GetAllOrdersOnShelves()
+	shelves := lib.StringifyShelves(allShelfOrders)
+	log.Printf("\n ----- Shelf Contents ------ \n%s", shelves)
 }
 
 func (o *orderJob) RemoveExpiredOrders() {

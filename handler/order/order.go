@@ -9,6 +9,7 @@ import (
 	"github.com/kitchen-delivery/entity"
 	"github.com/kitchen-delivery/entity/endpoint"
 	"github.com/kitchen-delivery/entity/exception"
+	"github.com/kitchen-delivery/lib"
 	"github.com/kitchen-delivery/mapper"
 	"github.com/kitchen-delivery/service"
 
@@ -161,6 +162,11 @@ func (o *orderHandler) pickupOrder(w http.ResponseWriter, r *http.Request) {
 	orderContents := order.String()
 
 	log.Printf("driver picked up order successfully - %s", orderContents)
+
+	// Fetch and print the contents of the shelves as a best effort.
+	allShelfOrders, err := o.services.Order.GetAllOrdersOnShelves()
+	shelves := lib.StringifyShelves(allShelfOrders)
+	log.Printf("----- Shelf Contents ------ \n%s", shelves)
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(orderContents))

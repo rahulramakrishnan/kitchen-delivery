@@ -18,6 +18,8 @@ type ShelfOrder struct {
 	ExpiresAt   time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	// Used for fetching orders from shelves on a join.
+	Order Order
 }
 
 // Validate verifies that a shelf order has valid fields.

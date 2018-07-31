@@ -17,6 +17,8 @@ import (
 // ShelfOrderRepository is the shelf order repository interface.
 type ShelfOrderRepository interface {
 	AddOrderToShelf(shelfOrder entity.ShelfOrder) error
+	// Returns orders by shelf for demo transparency reasons.
+	GetOrdersOnShelf(shelfType entity.ShelfType) ([]*entity.ShelfOrder, error)
 	CountOrdersOnShelf(shelfType entity.ShelfType) (int, error)
 	UpdateOrderStatus(shelfOrder entity.ShelfOrder, orderStatus entity.OrderStatus) error
 	GetOpenOrder() (*entity.ShelfOrder, error)
@@ -57,6 +59,31 @@ func (s *shelfRepository) AddOrderToShelf(shelfOrder entity.ShelfOrder) error {
 
 	tx.Commit()
 	return nil
+}
+
+// GetOrdersOnShelf gets orders by shelf.
+func (s *shelfRepository) GetOrdersOnShelf(shelfType entity.ShelfType) ([]*entity.ShelfOrder, error) {
+	// Get shelf orders in "hot" w/ status of ready for pick up.
+	var shelfOrderRecords []*record.ShelfOrder
+	orderStatus := entity.OrderStatusReadyForPickup
+	err := s.db.Preload("Order").
+		Where("shelf_type = ?", string(shelfType)).
+		Where("order_status = ?", string(orderStatus)).
+		Find(&shelfOrderRecords).
+		Error
+
+	if err != nil {
+		return nil, errors.Wrapf(
+			exception.ErrDatabase, "failed to fetch shelf orders - err: %s", err.Error())
+	}
+
+	shelfOrders, err := mapper.RecordsToShelfOrders(shelfOrderRecords)
+	if err != nil {
+		return nil, errors.Wrapf(
+			exception.ErrDataCorrupted, "failed to map records to shelf orders, err: %s", err.Error())
+	}
+
+	return shelfOrders, nil
 }
 
 // CountOrdersOnShelf counts shelf orders.
