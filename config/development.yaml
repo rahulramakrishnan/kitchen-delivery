@@ -7,6 +7,12 @@ pickup:
   mean: 3.0
 worker_pool:
   max_workers: 5
+redis:
+  max_idle: 5
+  max_active: 5
+  idle_timeout: 20
+  wait: true
+  port: 6379
 shelf_space:
   hot: 15
   cold: 15

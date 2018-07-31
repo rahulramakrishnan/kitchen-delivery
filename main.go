@@ -1,11 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/gomodule/redigo/redis"
 	"github.com/kitchen-delivery/config"
 	"github.com/kitchen-delivery/entity"
 	"github.com/kitchen-delivery/handler"
@@ -13,6 +13,7 @@ import (
 	"github.com/kitchen-delivery/service"
 	"github.com/kitchen-delivery/service/repository"
 
+	"github.com/gomodule/redigo/redis"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 )
@@ -42,12 +43,13 @@ func main() {
 	// Use this as a first in first out queue.
 	// TODO: Move this to a configuration.
 	redisPool := &redis.Pool{
-		MaxIdle:     5,
-		MaxActive:   5,
-		IdleTimeout: 20 * time.Second,
-		Wait:        true,
+		MaxIdle:     cfg.Redis.MaxIdle,
+		MaxActive:   cfg.Redis.MaxActive,
+		IdleTimeout: time.Duration(cfg.Redis.IdleTimeout) * time.Second,
+		Wait:        cfg.Redis.Wait,
 		Dial: func() (redis.Conn, error) {
-			redisConn, err := redis.Dial("tcp", ":6379")
+			redisHost := fmt.Sprintf(":%d", cfg.Redis.Port)
+			redisConn, err := redis.Dial("tcp", redisHost)
 			if err != nil {
 				return nil, err
 			}

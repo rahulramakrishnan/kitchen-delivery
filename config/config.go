@@ -14,6 +14,7 @@ type AppConfig struct {
 	Databases   Databases  `yaml:"databases"`
 	Pickup      Pickup     `yaml:"pickup"`
 	WorkerPool  WorkerPool `yaml:"worker_pool"`
+	Redis       Redis      `yaml:"redis"`
 	ShelfSpace  ShelfSpace `yaml:"shelf_space"`
 }
 
@@ -70,6 +71,15 @@ type Pickup struct {
 // WorkerPool holds max worker count.
 type WorkerPool struct {
 	MaxWorkers int `yaml:"max_workers"` // num of max workers.
+}
+
+// Redis holds redis client information.
+type Redis struct {
+	MaxIdle     int  `yaml:"max_idle"`
+	MaxActive   int  `yaml:"max_active"`
+	IdleTimeout int  `yaml:"idle_timeout"`
+	Wait        bool `yaml:"wait"`
+	Port        int  `yaml:"port"`
 }
 
 // ShelfSpace holds capacity of each type of shelf.
